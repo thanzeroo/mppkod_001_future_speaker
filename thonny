@@ -1,0 +1,589 @@
+import machine
+import time
+import network
+import usocket as socket
+import gc
+
+# =========================================================
+# FUTURE SPEAKER - DUAL ULTRASONIC & WI-FI CONTROLLER
+# =========================================================
+
+# --- KONFIGURASI WI-FI ---
+# Jika ingin sambung ke WiFi rumah/hotspot HP, isi SSID & Password di bawah.
+# Jika dikosongkan, ESP otomatis membuat Hotspot sendiri (AP Mode).
+WIFI_SSID = ""        # Contoh: "Nama_WiFi_Kamu"
+WIFI_PASS = ""        # Contoh: "Password_WiFi"
+
+# Konfigurasi Hotspot ESP (AP Mode)
+AP_SSID = "FutureSpeaker"
+AP_PASS = "12345678"  # Minimal 8 karakter
+
+# --- PIN HARDWARE ---
+TRIG_KIRI = 5
+ECHO_KIRI = 18
+
+TRIG_KANAN = 19
+ECHO_KANAN = 21
+
+PIN_SPEAKER = 25
+
+
+# =========================================================
+# HC-SR04 SENSOR ULTRASONIK
+# =========================================================
+
+class HCSR04:
+    def __init__(self, trig_pin, echo_pin):
+        self.trig = machine.Pin(trig_pin, machine.Pin.OUT)
+        self.echo = machine.Pin(echo_pin, machine.Pin.IN)
+        self.trig.value(0)
+
+    def get_distance(self):
+        self.trig.value(0)
+        time.sleep_us(5)
+        self.trig.value(1)
+        time.sleep_us(10)
+        self.trig.value(0)
+
+        try:
+            pulse = machine.time_pulse_us(self.echo, 1, 6000)
+            if pulse < 0:
+                return 999.0
+            return (pulse * 0.0343) / 2
+        except Exception:
+            return 999.0
+
+
+sensor_kiri = HCSR04(TRIG_KIRI, ECHO_KIRI)
+sensor_kanan = HCSR04(TRIG_KANAN, ECHO_KANAN)
+sensor_kiri_dist = 999.0
+sensor_kanan_dist = 999.0
+
+
+# =========================================================
+# DETEKTOR TANGAN (Anti-Noise & Debounce)
+# =========================================================
+
+BATAS_JARAK = 15      # cm
+HYSTERESIS = 4        # cm
+KONFIRMASI = 2        # kali bacaan berturut-turut
+
+class DetektorTangan:
+    def __init__(self):
+        self.aktif = False
+        self.dekat = 0
+        self.jauh = 0
+
+    def update(self, jarak):
+        if jarak < BATAS_JARAK:
+            self.dekat += 1
+            self.jauh = 0
+            if self.dekat >= KONFIRMASI and not self.aktif:
+                self.aktif = True
+                return True
+        elif jarak > BATAS_JARAK + HYSTERESIS:
+            self.jauh += 1
+            self.dekat = 0
+            if self.jauh >= KONFIRMASI:
+                self.aktif = False
+        return False
+
+
+tangan_kiri = DetektorTangan()
+tangan_kanan = DetektorTangan()
+
+
+# =========================================================
+# SPEAKER PWM
+# =========================================================
+
+speaker = machine.PWM(machine.Pin(PIN_SPEAKER))
+speaker.duty(0)
+VOLUME = 600
+
+
+# =========================================================
+# FREKUENSI NADA MUSIK
+# =========================================================
+
+REST = 0
+
+C4 = 262
+CS4 = 277
+D4 = 294
+DS4 = 311
+EB4 = 311
+E4 = 330
+F4 = 349
+FS4 = 370
+G4 = 392
+GS4 = 415
+A4 = 440
+AS4 = 466
+BB4 = 466
+B4 = 494
+
+C5 = 523
+CS5 = 554
+D5 = 587
+DS5 = 622
+EB5 = 622
+E5 = 659
+F5 = 698
+FS5 = 740
+G5 = 784
+GS5 = 831
+A5 = 880
+AS5 = 932
+BB5 = 932
+B5 = 988
+
+C6 = 1047
+CS6 = 1109
+D6 = 1175
+DS6 = 1245
+E6 = 1319
+F6 = 1397
+FS6 = 1480
+G6 = 1568
+A6 = 1760
+B6 = 1976
+
+
+# =========================================================
+# PLAYLIST FAMILIAR & VARIATIF
+# =========================================================
+
+# 1. Super Mario Bros (Intro cepat & ikonik)
+mario = [
+    (E5, 120), (E5, 120), (REST, 120), (E5, 120), (REST, 120),
+    (C5, 120), (E5, 160), (G5, 260), (REST, 200), (G4, 260),
+    (REST, 180), (C5, 200), (REST, 100), (G4, 180), (REST, 100),
+    (E4, 180), (REST, 100), (A4, 160), (B4, 160), (AS4, 120),
+    (A4, 180), (G4, 160), (E5, 160), (G5, 160), (A5, 220),
+    (F5, 120), (G5, 120), (E5, 160), (C5, 120), (D5, 120), (B4, 260)
+]
+
+# 2. Minecraft - Wet Hands C418 (Intro tenang & lembut)
+minecraft = [
+    (A4, 380), (B4, 380), (D5, 420), (REST, 100),
+    (E5, 460), (FS5, 360), (E5, 420), (D5, 360),
+    (B4, 520), (REST, 180), (A4, 400), (B4, 400),
+    (D5, 450), (REST, 120), (E5, 650), (REST, 200),
+    (FS5, 360), (A5, 420), (FS5, 420), (E5, 360),
+    (D5, 520), (REST, 180), (B4, 420), (A4, 650)
+]
+
+# 3. Tetris - Korobeiniki (Intro folk Rusia bersemangat)
+tetris = [
+    (E5, 240), (B4, 120), (C5, 120), (D5, 240), (C5, 120), (B4, 120),
+    (A4, 240), (A4, 120), (C5, 120), (E5, 240), (D5, 120), (C5, 120),
+    (B4, 360), (C5, 120), (D5, 240), (E5, 240),
+    (C5, 240), (A4, 240), (A4, 320), (REST, 120),
+    (D5, 300), (F5, 120), (A5, 240), (G5, 120), (F5, 120),
+    (E5, 360), (C5, 120), (E5, 240), (D5, 120), (C5, 120),
+    (B4, 240), (B4, 120), (C5, 120), (D5, 240), (E5, 240),
+    (C5, 240), (A4, 240), (A4, 360)
+]
+
+# 4. Star Wars - The Imperial March (Intro marching gagah)
+starwars = [
+    (G4, 350), (G4, 350), (G4, 350), (EB4, 260), (BB4, 100),
+    (G4, 350), (EB4, 260), (BB4, 100), (G4, 620), (REST, 150),
+    (D5, 350), (D5, 350), (D5, 350), (EB5, 260), (BB4, 100),
+    (FS4, 350), (EB4, 260), (BB4, 100), (G4, 620)
+]
+
+# 5. Pac-Man Theme (Intro 8-bit retro arcade)
+pacman = [
+    (B4, 130), (B5, 130), (FS5, 130), (DS5, 130),
+    (B5, 90), (FS5, 180), (DS5, 200), (REST, 60),
+    (C5, 130), (C6, 130), (G5, 130), (E5, 130),
+    (C6, 90), (G5, 180), (E5, 200), (REST, 60),
+    (B4, 130), (B5, 130), (FS5, 130), (DS5, 130),
+    (B5, 90), (FS5, 180), (DS5, 200), (REST, 60),
+    (DS5, 100), (E5, 100), (F5, 100), (REST, 60),
+    (F5, 100), (FS5, 100), (G5, 100), (REST, 60),
+    (GS5, 100), (A5, 100), (B5, 260)
+]
+
+# 6. Pirates of the Caribbean (Intro ritme 6/8 menghentak)
+pirates = [
+    (D4, 140), (D4, 140), (D4, 140), (D4, 140),
+    (D4, 140), (E4, 140), (F4, 240), (F4, 240),
+    (F4, 140), (G4, 140), (E4, 240), (E4, 240),
+    (D4, 140), (C4, 140), (D4, 320), (REST, 100),
+    (D4, 140), (D4, 140), (D4, 140), (E4, 140),
+    (F4, 240), (F4, 240), (F4, 140), (G4, 140),
+    (E4, 240), (E4, 240), (D4, 140), (C4, 140), (D4, 400)
+]
+
+# 7. Harry Potter - Hedwig's Theme (Intro mistis & melodi mengalun)
+harry = [
+    (B4, 260), (E5, 380), (G5, 180), (FS5, 260),
+    (E5, 480), (B5, 280), (A5, 600), (FS5, 500),
+    (E5, 380), (G5, 180), (FS5, 260), (DS5, 380),
+    (F5, 280), (B4, 600)
+]
+
+# 8. Pokemon Theme (Intro petualangan anime ceria)
+pokemon = [
+    (C5, 220), (D5, 220), (E5, 320), (G5, 220),
+    (A5, 320), (G5, 220), (E5, 300), (D5, 220),
+    (C5, 400), (REST, 120), (C5, 200), (D5, 200),
+    (E5, 250), (D5, 200), (C5, 250), (D5, 350),
+    (E5, 250), (G5, 300), (A5, 450)
+]
+
+playlist = [mario, minecraft, tetris, starwars, pacman, pirates, harry, pokemon]
+
+nama_lagu = [
+    "Super Mario", "Minecraft", "Tetris", "Star Wars",
+    "Pac-Man", "Pirates", "Harry Potter", "Pokemon"
+]
+
+
+# =========================================================
+# STATE MUSIK
+# =========================================================
+
+lagu_sekarang = 0
+note_index = 0
+note_end = 0
+playing = True
+
+
+def start_note():
+    global note_index, note_end
+    lagu = playlist[lagu_sekarang]
+
+    if note_index >= len(lagu):
+        note_index = 0
+
+    freq, dur = lagu[note_index]
+    if freq == REST:
+        speaker.duty(0)
+    else:
+        speaker.freq(freq)
+        speaker.duty(VOLUME)
+
+    note_end = time.ticks_add(time.ticks_ms(), dur)
+
+
+def update_music():
+    global note_index
+    if not playing:
+        speaker.duty(0)
+        return
+
+    now = time.ticks_ms()
+    if time.ticks_diff(now, note_end) >= 0:
+        speaker.duty(0)
+        note_index += 1
+        if note_index >= len(playlist[lagu_sekarang]):
+            note_index = 0
+        start_note()
+
+
+def toggle_play():
+    global playing
+    if playing:
+        playing = False
+        speaker.duty(0)
+        print(">>> PAUSE <<<")
+    else:
+        playing = True
+        print(">>> PLAY:", nama_lagu[lagu_sekarang])
+        start_note()
+
+
+def next_song():
+    global lagu_sekarang, note_index, note_end
+    speaker.duty(0)
+    lagu_sekarang = (lagu_sekarang + 1) % len(playlist)
+    note_index = 0
+    note_end = 0
+    print(">>> NEXT:", nama_lagu[lagu_sekarang])
+    if playing:
+        start_note()
+
+
+def previous_song():
+    global lagu_sekarang, note_index, note_end
+    speaker.duty(0)
+    lagu_sekarang = (lagu_sekarang - 1 + len(playlist)) % len(playlist)
+    note_index = 0
+    note_end = 0
+    print(">>> PREV:", nama_lagu[lagu_sekarang])
+    if playing:
+        start_note()
+
+
+def select_song(index):
+    global lagu_sekarang, note_index, note_end
+    if 0 <= index < len(playlist):
+        speaker.duty(0)
+        lagu_sekarang = index
+        note_index = 0
+        note_end = 0
+        print(">>> SELECT:", nama_lagu[lagu_sekarang])
+        if playing:
+            start_note()
+
+
+# =========================================================
+# WI-FI & WEB SERVER (Aman dari bentrok port / EADDRINUSE)
+# =========================================================
+
+server_ip = "192.168.4.1"
+server_socket = None
+
+def setup_wifi():
+    global server_ip
+    # 1. Hubungkan ke router jika diisi
+    if WIFI_SSID:
+        try:
+            print("Menghubungkan ke Wi-Fi:", WIFI_SSID)
+            sta = network.WLAN(network.STA_IF)
+            sta.active(True)
+            sta.connect(WIFI_SSID, WIFI_PASS)
+            for _ in range(25):
+                if sta.isconnected():
+                    server_ip = sta.ifconfig()[0]
+                    print("Wi-Fi Terhubung! IP:", server_ip)
+                    return
+                time.sleep_ms(200)
+            print("Gagal tersambung ke router. Mengaktifkan Mode AP...")
+        except Exception as e:
+            print("Wi-Fi STA error:", e)
+
+    # 2. Mode Access Point (Hotspot ESP)
+    try:
+        ap = network.WLAN(network.AP_IF)
+        ap.active(True)
+        try:
+            ap.config(essid=AP_SSID, authmode=network.AUTH_WPA_WPA2_PSK, password=AP_PASS)
+        except Exception:
+            try:
+                ap.config(essid=AP_SSID, password=AP_PASS)
+            except Exception:
+                ap.config(essid=AP_SSID)
+        server_ip = ap.ifconfig()[0]
+    except Exception as e:
+        print("AP config warning:", e)
+
+    print("----------------------------------------")
+    print("Hotspot ESP Aktif!")
+    print("SSID:", AP_SSID, "| Sandi:", AP_PASS)
+    print("IP Speaker:", server_ip)
+    print("----------------------------------------")
+
+
+def init_socket_server():
+    global server_socket
+    gc.collect()
+
+    for attempt in range(3):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind(('', 80))
+            s.listen(2)
+            s.setblocking(False)
+            server_socket = s
+            print("Web Server aktif di port 80.")
+            return
+        except Exception as err:
+            print("Menunggu port 80 dilepas...", err)
+            try:
+                s.close()
+            except:
+                pass
+            time.sleep_ms(400)
+
+    print("Peringatan: Gagal bind port 80. Fitur gesture tetap berjalan!")
+
+
+# Jalankan konfigurasi Wi-Fi & Server
+try:
+    setup_wifi()
+    init_socket_server()
+except Exception as e:
+    print("Init WiFi/Server error:", e)
+
+
+def send_json(conn, data_str):
+    header = (
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: application/json\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+        "Access-Control-Allow-Headers: *\r\n"
+        "Connection: close\r\n\r\n"
+    )
+    conn.sendall(header + data_str)
+
+
+def check_wifi_requests():
+    global playing
+    if server_socket is None:
+        return
+
+    try:
+        conn, addr = server_socket.accept()
+    except Exception:
+        return  # Tidak ada request yang masuk
+
+    try:
+        conn.settimeout(0.04)
+        raw = conn.recv(512)
+        if not raw:
+            conn.close()
+            return
+
+        req = raw.decode('utf-8', 'ignore')
+        first_line = req.split('\r\n')[0]
+        parts = first_line.split()
+
+        if len(parts) >= 2:
+            method, path = parts[0], parts[1]
+
+            if method == "OPTIONS":
+                send_json(conn, '{"status":"ok"}')
+                conn.close()
+                return
+
+            if "/api/toggle" in path:
+                toggle_play()
+            elif "/api/play" in path:
+                if not playing:
+                    toggle_play()
+            elif "/api/pause" in path:
+                if playing:
+                    toggle_play()
+            elif "/api/next" in path:
+                next_song()
+            elif "/api/prev" in path:
+                previous_song()
+            elif "/api/select" in path:
+                try:
+                    song_id = int(path.split("id=")[1].split("&")[0])
+                    select_song(song_id)
+                except:
+                    pass
+            elif "/api/restart" in path:
+                speaker.duty(0)
+                select_song(0)
+
+            resp = '{"device":"Future Speaker","playing":%s,"song_index":%d,"song_name":"%s","kiri":%.1f,"kanan":%.1f}' % (
+                "true" if playing else "false",
+                lagu_sekarang,
+                nama_lagu[lagu_sekarang],
+                sensor_kiri_dist,
+                sensor_kanan_dist
+            )
+            send_json(conn, resp)
+    except Exception:
+        pass
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+# =========================================================
+# PENGATURAN KONTROL SENSOR
+# =========================================================
+
+INTERVAL_UKUR = 30      # ms
+DOUBLE_TAP_TIME = 500   # ms
+
+tap_kanan = 0
+waktu_tap_kanan = 0
+giliran = 0
+waktu_ukur_berikut = time.ticks_ms()
+
+
+# =========================================================
+# PROGRAM UTAMA
+# =========================================================
+
+try:
+    start_note()
+
+    print()
+    print("========================================")
+    print("      FUTURE SPEAKER - READY!           ")
+    print("========================================")
+    print("KONTROL GESTURE:")
+    print(" - Sensor Kiri      : Lagu Sebelumnya (PREV)")
+    print(" - Sensor Kanan 1x  : Putar / Jeda (PLAY/PAUSE)")
+    print(" - Sensor Kanan 2x  : Lagu Berikutnya (NEXT)")
+    print("KONTROL WI-FI:")
+    print(" - IP Address       :", server_ip)
+    print(" - Aplikasi Flutter : Future Speaker siap!")
+    print("========================================")
+    print("LAGU AWAL:", nama_lagu[lagu_sekarang])
+    print()
+
+    while True:
+        now = time.ticks_ms()
+
+        # 1. Update nada speaker
+        update_music()
+
+        # 2. Cek perintah dari Aplikasi Flutter via WiFi
+        check_wifi_requests()
+
+        # 3. Baca sensor HC-SR04 bergantian
+        if time.ticks_diff(now, waktu_ukur_berikut) >= 0:
+            waktu_ukur_berikut = time.ticks_add(now, INTERVAL_UKUR)
+
+            if giliran == 0:
+                sensor_kiri_dist = sensor_kiri.get_distance()
+                if tangan_kiri.update(sensor_kiri_dist):
+                    print("GESTURE KIRI -> PREV SONG")
+                    previous_song()
+            else:
+                sensor_kanan_dist = sensor_kanan.get_distance()
+                if tangan_kanan.update(sensor_kanan_dist):
+                    tap_kanan += 1
+                    waktu_tap_kanan = now
+                    print("GESTURE KANAN TAP:", tap_kanan)
+
+            giliran = 1 - giliran
+
+        # 4. Deteksi Tap Tunggal atau Ganda pada Sensor Kanan
+        if tap_kanan > 0:
+            if time.ticks_diff(now, waktu_tap_kanan) > DOUBLE_TAP_TIME:
+                if tap_kanan == 1:
+                    print("GESTURE KANAN 1x -> PLAY / PAUSE")
+                    toggle_play()
+                else:
+                    print("GESTURE KANAN 2x -> NEXT SONG")
+                    next_song()
+                tap_kanan = 0
+
+        time.sleep_ms(1)
+
+except KeyboardInterrupt:
+    print("\nProgram dihentikan oleh user.")
+
+finally:
+    speaker.duty(0)
+    try:
+        speaker.deinit()
+    except Exception:
+        pass
+    try:
+        sensor_kiri.trig.value(0)
+        sensor_kanan.trig.value(0)
+    except Exception:
+        pass
+    try:
+        if server_socket:
+            server_socket.close()
+    except Exception:
+        pass
+    print("Future Speaker OFF dengan aman.")
