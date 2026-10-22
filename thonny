@@ -5,6 +5,16 @@ import usocket as socket
 import gc
 
 # =========================================================
+# PENJELASAN UMUM
+# =========================================================
+# Program ini berjalan pada ESP32 dengan MicroPython.
+# Dua sensor ultrasonik membaca gerakan tangan untuk mengontrol
+# pemutaran lagu pada speaker, sementara aplikasi Flutter dapat
+# mengirim perintah yang sama melalui Wi-Fi dan web server HTTP.
+# Komentar berpagar seperti ini hanya dokumentasi; baris-barisnya
+# tidak dijalankan oleh Python.
+
+# =========================================================
 # FUTURE SPEAKER - DUAL ULTRASONIC & WI-FI CONTROLLER
 # =========================================================
 
@@ -19,6 +29,7 @@ AP_SSID = "FutureSpeaker"
 AP_PASS = "12345678"  # Minimal 8 karakter
 
 # --- PIN HARDWARE ---
+# Nomor GPIO ESP32 yang terhubung ke pin trigger/echo sensor dan speaker.
 TRIG_KIRI = 5
 ECHO_KIRI = 18
 
@@ -34,11 +45,13 @@ PIN_SPEAKER = 25
 
 class HCSR04:
     def __init__(self, trig_pin, echo_pin):
+        # Trigger mengirim pulsa; echo menerima pantulan gelombang suara.
         self.trig = machine.Pin(trig_pin, machine.Pin.OUT)
         self.echo = machine.Pin(echo_pin, machine.Pin.IN)
         self.trig.value(0)
 
     def get_distance(self):
+        # Pulsa trigger 10 mikrodetik memulai pengukuran HC-SR04.
         self.trig.value(0)
         time.sleep_us(5)
         self.trig.value(1)
@@ -46,9 +59,12 @@ class HCSR04:
         self.trig.value(0)
 
         try:
+            # Ukur lamanya sinyal echo HIGH; timeout mencegah program menunggu terus.
             pulse = machine.time_pulse_us(self.echo, 1, 6000)
             if pulse < 0:
+                # Nilai 999 cm menandai tidak ada pantulan yang valid.
                 return 999.0
+            # Suara menempuh jarak pergi-pulang, jadi hasil dibagi dua.
             return (pulse * 0.0343) / 2
         except Exception:
             return 999.0
@@ -64,17 +80,21 @@ sensor_kanan_dist = 999.0
 # DETEKTOR TANGAN (Anti-Noise & Debounce)
 # =========================================================
 
+# Tangan dianggap mendekat di bawah 15 cm; hysteresis memberi jarak
+# tambahan sebelum status kembali tidak aktif agar sensor tidak bergetar.
 BATAS_JARAK = 15      # cm
 HYSTERESIS = 4        # cm
 KONFIRMASI = 2        # kali bacaan berturut-turut
 
 class DetektorTangan:
     def __init__(self):
+        # Status aktif dan penghitung bacaan berturut-turut untuk debounce.
         self.aktif = False
         self.dekat = 0
         self.jauh = 0
 
     def update(self, jarak):
+        # Hanya laporkan satu kejadian saat tangan baru terdeteksi masuk.
         if jarak < BATAS_JARAK:
             self.dekat += 1
             self.jauh = 0
@@ -97,6 +117,7 @@ tangan_kanan = DetektorTangan()
 # SPEAKER PWM
 # =========================================================
 
+# PWM mengatur nada dan keras-lembut speaker; duty 0 berarti diam.
 speaker = machine.PWM(machine.Pin(PIN_SPEAKER))
 speaker.duty(0)
 VOLUME = 600
@@ -106,6 +127,7 @@ VOLUME = 600
 # FREKUENSI NADA MUSIK
 # =========================================================
 
+# Setiap konstanta adalah frekuensi nada dalam Hz; REST adalah jeda.
 REST = 0
 
 C4 = 262
@@ -154,6 +176,7 @@ B6 = 1976
 # PLAYLIST FAMILIAR & VARIATIF
 # =========================================================
 
+# Setiap lagu berupa daftar pasangan (frekuensi nada, lama nada dalam ms).
 # 1. Super Mario Bros (Intro cepat & ikonik)
 mario = [
     (E5, 120), (E5, 120), (REST, 120), (E5, 120), (REST, 120),
@@ -247,6 +270,8 @@ nama_lagu = [
 # STATE MUSIK
 # =========================================================
 
+# Indeks lagu dan nada yang sedang dimainkan. note_end menyimpan waktu
+# berakhirnya nada agar musik dapat berjalan tanpa menghentikan loop utama.
 lagu_sekarang = 0
 note_index = 0
 note_end = 0
@@ -254,6 +279,7 @@ playing = True
 
 
 def start_note():
+    # Mulai nada saat ini, atau jeda jika frekuensinya REST.
     global note_index, note_end
     lagu = playlist[lagu_sekarang]
 
@@ -271,6 +297,7 @@ def start_note():
 
 
 def update_music():
+    # Periksa waktu nada secara berkala agar sensor dan Wi-Fi tetap responsif.
     global note_index
     if not playing:
         speaker.duty(0)
@@ -286,6 +313,7 @@ def update_music():
 
 
 def toggle_play():
+    # Ubah status putar/jeda dan matikan PWM saat dijeda.
     global playing
     if playing:
         playing = False
@@ -298,6 +326,7 @@ def toggle_play():
 
 
 def next_song():
+    # Pindah ke lagu berikutnya; modulo membuat playlist berputar dari awal.
     global lagu_sekarang, note_index, note_end
     speaker.duty(0)
     lagu_sekarang = (lagu_sekarang + 1) % len(playlist)
@@ -309,6 +338,7 @@ def next_song():
 
 
 def previous_song():
+    # Pindah ke lagu sebelumnya; dari lagu pertama kembali ke lagu terakhir.
     global lagu_sekarang, note_index, note_end
     speaker.duty(0)
     lagu_sekarang = (lagu_sekarang - 1 + len(playlist)) % len(playlist)
@@ -320,6 +350,7 @@ def previous_song():
 
 
 def select_song(index):
+    # Pilih lagu berdasarkan indeks, hanya jika indeks berada dalam playlist.
     global lagu_sekarang, note_index, note_end
     if 0 <= index < len(playlist):
         speaker.duty(0)
@@ -335,10 +366,12 @@ def select_song(index):
 # WI-FI & WEB SERVER (Aman dari bentrok port / EADDRINUSE)
 # =========================================================
 
+# server_ip adalah alamat yang perlu dipakai aplikasi untuk menghubungi ESP32.
 server_ip = "192.168.4.1"
 server_socket = None
 
 def setup_wifi():
+    # Utamakan router jika kredensial tersedia; jika gagal, buat hotspot ESP.
     global server_ip
     # 1. Hubungkan ke router jika diisi
     if WIFI_SSID:
@@ -380,6 +413,7 @@ def setup_wifi():
 
 
 def init_socket_server():
+    # Buka server HTTP non-blocking pada port 80 agar loop sensor tidak tertahan.
     global server_socket
     gc.collect()
 
@@ -413,6 +447,7 @@ except Exception as e:
 
 
 def send_json(conn, data_str):
+    # Balas permintaan aplikasi dengan header HTTP dan isi JSON.
     header = (
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: application/json\r\n"
@@ -425,6 +460,7 @@ def send_json(conn, data_str):
 
 
 def check_wifi_requests():
+    # Terima satu permintaan aplikasi, jalankan perintahnya, lalu kirim status.
     global playing
     if server_socket is None:
         return
@@ -448,12 +484,14 @@ def check_wifi_requests():
         if len(parts) >= 2:
             method, path = parts[0], parts[1]
 
+            # OPTIONS menangani preflight browser sebelum permintaan API.
             if method == "OPTIONS":
                 send_json(conn, '{"status":"ok"}')
                 conn.close()
                 return
 
             if "/api/toggle" in path:
+                # Rute API berikut mengontrol pemutaran dan pemilihan lagu.
                 toggle_play()
             elif "/api/play" in path:
                 if not playing:
@@ -496,6 +534,8 @@ def check_wifi_requests():
 # PENGATURAN KONTROL SENSOR
 # =========================================================
 
+# Sensor dibaca bergantian tiap interval; dua tap kanan digabung dalam
+# jendela waktu 500 ms untuk membedakan perintah play/pause dan next.
 INTERVAL_UKUR = 30      # ms
 DOUBLE_TAP_TIME = 500   # ms
 
@@ -509,6 +549,8 @@ waktu_ukur_berikut = time.ticks_ms()
 # PROGRAM UTAMA
 # =========================================================
 
+# Mulai lagu pertama, tampilkan petunjuk status, lalu jalankan semua tugas
+# berulang kali tanpa jeda panjang: musik, Wi-Fi, pembacaan sensor, dan gesture.
 try:
     start_note()
 
@@ -537,6 +579,7 @@ try:
         check_wifi_requests()
 
         # 3. Baca sensor HC-SR04 bergantian
+        # Membaca satu sensor per giliran mengurangi gangguan antar-pantulan.
         if time.ticks_diff(now, waktu_ukur_berikut) >= 0:
             waktu_ukur_berikut = time.ticks_add(now, INTERVAL_UKUR)
 
@@ -555,6 +598,7 @@ try:
             giliran = 1 - giliran
 
         # 4. Deteksi Tap Tunggal atau Ganda pada Sensor Kanan
+        # Tunggu hingga jendela double-tap selesai sebelum memilih aksinya.
         if tap_kanan > 0:
             if time.ticks_diff(now, waktu_tap_kanan) > DOUBLE_TAP_TIME:
                 if tap_kanan == 1:
@@ -568,9 +612,11 @@ try:
         time.sleep_ms(1)
 
 except KeyboardInterrupt:
+    # Ctrl+C menghentikan program dengan aman, bukan meninggalkan speaker aktif.
     print("\nProgram dihentikan oleh user.")
 
 finally:
+    # Bagian ini tetap dijalankan saat keluar: matikan PWM, pin sensor, dan server.
     speaker.duty(0)
     try:
         speaker.deinit()
