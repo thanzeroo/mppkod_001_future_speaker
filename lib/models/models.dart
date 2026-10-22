@@ -1,11 +1,17 @@
-/// Song data model matching the ESP32 playlist
+// Model data lagu yang merepresentasikan lagu pada playlist ESP32
 class Song {
+  // ID unik lagu (0 sampai 7) sesuai urutan playlist di firmware MicroPython
   final int id;
+  // Judul lagu (contoh: 'Super Mario', 'Minecraft', dll.)
   final String title;
+  // Nama artis atau pencipta lagu
   final String artist;
+  // Daftar kumpulan nada (frekuensi dan durasi) untuk lagu ini
   final List<Note> notes;
+  // Perkiraan total durasi pemutaran satu putaran melodi lagu
   final Duration duration;
 
+  // Konstruktor konstan untuk membuat objek Song yang immutable (tidak dapat diubah)
   const Song({
     required this.id,
     required this.title,
@@ -15,28 +21,39 @@ class Song {
   });
 }
 
-/// A single note with frequency and duration
+// Representasi satu nada musik tunggal
 class Note {
+  // Frekuensi nada dalam satuan Hertz (Hz), misal 262 untuk C4, atau 0 untuk jeda nada (REST)
   final int frequency;
+  // Durasi nada dibunyikan dalam satuan milidetik (ms)
   final int durationMs;
 
+  // Konstruktor konstan untuk Note
   const Note(this.frequency, this.durationMs);
 }
 
-/// Connection state for ESP32
+// Enumerasi status koneksi antara aplikasi Flutter dan perangkat ESP32
 enum ConnectionState {
+  // Berhasil terhubung dan bertukar data dengan ESP32 via Wi-Fi
   connected,
+  // Sedang dalam proses mencoba menghubungi IP ESP32
   connecting,
+  // Tidak tersambung atau koneksi terputus dari ESP32
   disconnected,
 }
 
-/// Sensor reading from HC-SR04
+// Model data pembacaan sensor ultrasonik HC-SR04
 class SensorReading {
+  // Jarak yang terukur dalam satuan sentimeter (cm)
   final double distanceCm;
+  // Status boolean apakah terdeteksi tangan/objek dalam batas deteksi
   final bool objectDetected;
+  // Tipe sensor yang digunakan pada perangkat keras (default: HC-SR04)
   final String sensorType;
+  // Waktu saat data sensor ini dicatat/diterima
   final DateTime timestamp;
 
+  // Konstruktor konstan untuk SensorReading
   const SensorReading({
     required this.distanceCm,
     required this.objectDetected,
@@ -45,18 +62,28 @@ class SensorReading {
   });
 }
 
-/// Device settings model
+// Model data konfigurasi pengaturan perangkat Future Speaker
 class DeviceSettings {
+  // Nama perangkat yang ditampilkan pada UI aplikasi
   String deviceName;
+  // Flag aktif/nonaktifnya fitur sensor gestur ultrasonik
   bool sensorEnabled;
-  int sensitivity; // 1=Rendah, 2=Sedang, 3=Tinggi
-  int detectionDistance; // 2-20 cm
+  // Tingkat sensitivitas deteksi gestur (1 = Rendah, 2 = Sedang, 3 = Tinggi)
+  int sensitivity;
+  // Batas ambang jarak deteksi tangan dalam sentimeter (default 15 cm)
+  int detectionDistance;
+  // Umpan balik audio saat gestur berhasil dikenali
   bool gestureSound;
+  // Nama SSID Hotspot Wi-Fi default dari ESP32
   String wifiName;
+  // Alamat IP server HTTP ESP32 (Default AP ESP: 192.168.4.1)
   String espIp;
+  // Status konektivitas Wi-Fi
   bool wifiConnected;
+  // Status kesiapan modul Bluetooth pendukung
   bool bluetoothReady;
 
+  // Konstruktor dengan nilai bawaan (default) yang siap pakai
   DeviceSettings({
     this.deviceName = 'Future Speaker',
     this.sensorEnabled = true,
@@ -69,6 +96,7 @@ class DeviceSettings {
     this.bluetoothReady = true,
   });
 
+  // Method copyWith untuk menduplikasi objek dengan beberapa perubahan nilai tanpa mengubah nilai lainnya
   DeviceSettings copyWith({
     String? deviceName,
     bool? sensorEnabled,
@@ -93,6 +121,7 @@ class DeviceSettings {
     );
   }
 
+  // Getter pembantu untuk menampilkan label teks sensitivitas dalam bahasa Indonesia
   String get sensitivityLabel {
     switch (sensitivity) {
       case 1:

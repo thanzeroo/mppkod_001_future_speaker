@@ -1,12 +1,21 @@
+// Mengimpor material UI Flutter
 import 'package:flutter/material.dart';
+// Mengimpor token warna tema
 import '../theme/app_theme.dart';
+// Mengimpor widget connection badge indikator status
 import '../widgets/connection_badge.dart';
+// Mengimpor widget speaker status card
 import '../widgets/speaker_status_card.dart';
+// Mengimpor widget now playing card pemutar musik
 import '../widgets/now_playing_card.dart';
+// Mengimpor widget sensor card pembacaan ultrasonik
 import '../widgets/sensor_card.dart';
+// Mengimpor widget gesture grid panduan kontrol
 import '../widgets/gesture_grid.dart';
+// Mengimpor layar settings screen
 import 'settings_screen.dart';
 
+// Layar utama (Home Screen) aplikasi Future Speaker
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -15,12 +24,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  // Controller animasi fade-in saat pertama kali masuk ke HomeScreen
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    // Durasi fade-in 600 milidetik dengan kurva easeOut
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -47,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           opacity: _fadeAnimation,
           child: Column(
             children: [
-              // ── Header ──
+              // ── Header Bagian Atas (Judul & Tombol Settings) ──
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 14, 14, 0),
                 child: Row(
@@ -81,12 +92,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    // Tombol navigasi ke SettingsScreen
                     _buildSettingsButton(context),
                   ],
                 ),
               ),
 
-              // ── Connection Badge ──
+              // ── Badge Indikator Status Koneksi ──
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
                 child: Align(
@@ -95,24 +107,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
 
-              // ── Scrollable Content ──
+              // ── Konten Scrollable Kartu-Kartu Utama ──
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                   physics: const BouncingScrollPhysics(),
                   children: const [
+                    // Kartu status speaker dan tombol sambung/restart Wi-Fi
                     SpeakerStatusCard(),
                     SizedBox(height: 24),
+                    // Label pemutar lagu
                     _SectionLabel('Sedang Diputar'),
                     SizedBox(height: 10),
+                    // Kartu pemutar musik aktif
                     NowPlayingCard(),
                     SizedBox(height: 24),
+                    // Label pembacaan sensor
                     _SectionLabel('Sensor Gesture HC-SR04'),
                     SizedBox(height: 10),
+                    // Kartu monitoring jarak sensor ultrasonik
                     SensorCard(),
                     SizedBox(height: 24),
+                    // Label petunjuk gestur
                     _SectionLabel('Petunjuk Kontrol Gesture'),
                     SizedBox(height: 10),
+                    // Grid 2x2 informasi gestur tangan
                     GestureGrid(),
                     SizedBox(height: 24),
                   ],
@@ -125,6 +144,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  // Membangun tombol ikon gear dengan animasi geser halus menuju SettingsScreen
   Widget _buildSettingsButton(BuildContext context) {
     return Material(
       color: Colors.transparent,
@@ -135,6 +155,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             PageRouteBuilder(
               pageBuilder: (context, anim, secondaryAnim) => const SettingsScreen(),
               transitionsBuilder: (context, anim, secondaryAnim, child) {
+                // Efek transisi bergeser dari kanan ke kiri (SlideTransition)
                 return SlideTransition(
                   position: Tween<Offset>(
                     begin: const Offset(1, 0),
@@ -168,6 +189,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 }
 
+// Widget label judul section yang konsisten
 class _SectionLabel extends StatelessWidget {
   final String text;
   const _SectionLabel(this.text);

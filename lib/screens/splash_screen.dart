@@ -1,8 +1,13 @@
+// Mengimpor async untuk menjalankan timer durasi splash screen
 import 'dart:async';
+// Mengimpor material UI Flutter
 import 'package:flutter/material.dart';
+// Mengimpor token warna tema
 import '../theme/app_theme.dart';
+// Mengimpor halaman utama HomeScreen tujuan navigasi
 import 'home_screen.dart';
 
+// Layar pembuka (Splash Screen) dengan animasi logo berdenyut dan progress bar
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -12,24 +17,31 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
+  // Controller untuk animasi denyut (pulse) logo
   late AnimationController _pulseController;
+  // Controller untuk animasi fade-in saat pertama kali muncul
   late AnimationController _fadeController;
+  // Nilai skala pembesaran/pengecilan logo
   late Animation<double> _scaleAnimation;
+  // Nilai opasitas fade-in
   late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
 
+    // 1. Inisialisasi animasi denyutan berulang (1800ms repeat reverse)
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1800),
       vsync: this,
     )..repeat(reverse: true);
 
+    // Interpolasi skala logo dari 0.94 ke 1.06
     _scaleAnimation = Tween<double>(begin: 0.94, end: 1.06).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
+    // 2. Inisialisasi animasi fade-in layar selama 900ms
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 900),
       vsync: this,
@@ -40,11 +52,13 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.easeIn,
     );
 
+    // Memulai animasi fade-in
     _fadeController.forward();
 
-    // Navigate to HomeScreen after brief showcase
+    // 3. Berpindah ke HomeScreen setelah jeda 2200 milidetik
     Timer(const Duration(milliseconds: 2200), () {
       if (mounted) {
+        // Mengganti rute dengan efek transisi FadeTransition halus
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             pageBuilder: (context, anim, secondaryAnim) => const HomeScreen(),
@@ -58,6 +72,7 @@ class _SplashScreenState extends State<SplashScreen>
     });
   }
 
+  // Membersihkan kedua controller animasi saat widget dibuang dari pohon widget
   @override
   void dispose() {
     _pulseController.dispose();
@@ -70,6 +85,7 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
+        // Efek fade-in untuk seluruh konten splash screen
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: Center(
@@ -78,7 +94,7 @@ class _SplashScreenState extends State<SplashScreen>
               children: [
                 const Spacer(),
 
-                // ── Animated Future Speaker Logo ──
+                // ── Animasi Logo Future Speaker ──
                 ScaleTransition(
                   scale: _scaleAnimation,
                   child: Container(
@@ -107,7 +123,7 @@ class _SplashScreenState extends State<SplashScreen>
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Outer pulse ring
+                        // Cincin luar lingkaran tipis
                         Container(
                           width: 104,
                           height: 104,
@@ -119,7 +135,7 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                           ),
                         ),
-                        // Inner icon with sound waves
+                        // Ikon speaker di dalam lingkaran
                         const Icon(
                           Icons.speaker_group_rounded,
                           size: 58,
@@ -131,7 +147,7 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
                 const SizedBox(height: 32),
 
-                // ── App Title ──
+                // ── Judul Aplikasi ──
                 const Text(
                   'FUTURE SPEAKER',
                   style: TextStyle(
@@ -143,7 +159,7 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
                 const SizedBox(height: 8),
 
-                // ── Subtitle ──
+                // ── Subjudul Tagline ──
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -170,7 +186,7 @@ class _SplashScreenState extends State<SplashScreen>
 
                 const Spacer(),
 
-                // ── Loading Bar ──
+                // ── Indikator Loading Bar ──
                 SizedBox(
                   width: 140,
                   child: ClipRRect(

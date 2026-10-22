@@ -1,13 +1,19 @@
+// Mengimpor paket material UI Flutter
 import 'package:flutter/material.dart';
+// Mengimpor provider untuk membaca dan mengubah status pemutar musik
 import 'package:provider/provider.dart';
+// Mengimpor SpeakerProvider
 import '../providers/speaker_provider.dart';
+// Mengimpor token warna tema
 import '../theme/app_theme.dart';
 
+// Widget kartu pemutar musik utama (Now Playing Card)
 class NowPlayingCard extends StatelessWidget {
   const NowPlayingCard({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Mendengarkan perubahan data pemutaran musik dari SpeakerProvider
     return Consumer<SpeakerProvider>(
       builder: (context, provider, _) {
         final song = provider.currentSong;
@@ -28,10 +34,10 @@ class NowPlayingCard extends StatelessWidget {
           ),
           child: Column(
             children: [
-              // ── Song Info & Playlist Selector ──
+              // ── Informasi Lagu & Tombol Buka Daftar Playlist ──
               Row(
                 children: [
-                  // Album art with gradient
+                  // Album art ikonik bergradasi biru
                   Container(
                     width: 54,
                     height: 54,
@@ -60,6 +66,7 @@ class NowPlayingCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 14),
+                  // Judul lagu dan nama artis
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -88,7 +95,7 @@ class NowPlayingCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Playlist Selector Button
+                  // Tombol untuk membuka Bottom Sheet daftar lagu
                   IconButton(
                     icon: const Icon(Icons.queue_music_rounded, size: 24),
                     color: AppColors.primary,
@@ -99,7 +106,7 @@ class NowPlayingCard extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // ── Progress Bar ──
+              // ── Progress Bar & Waktu Berjalan ──
               Column(
                 children: [
                   SliderTheme(
@@ -117,6 +124,7 @@ class NowPlayingCard extends StatelessWidget {
                     ),
                     child: Slider(
                       value: provider.progress.clamp(0.0, 1.0),
+                      // Fungsi seek saat slider digeser pengguna
                       onChanged: (v) => provider.seekTo(v),
                     ),
                   ),
@@ -125,6 +133,7 @@ class NowPlayingCard extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        // Waktu detik lagu yang telah diputar
                         Text(
                           provider.currentTimeStr,
                           style: const TextStyle(
@@ -133,6 +142,7 @@ class NowPlayingCard extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        // Total perkiraan durasi lagu
                         Text(
                           provider.totalTimeStr,
                           style: const TextStyle(
@@ -148,11 +158,11 @@ class NowPlayingCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
 
-              // ── Playback Controls ──
+              // ── Tombol Pengontrol Pemutaran (Previous, Play/Pause, Next) ──
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Previous
+                  // Tombol Lagu Sebelumnya (Prev)
                   _ControlButton(
                     icon: Icons.skip_previous_rounded,
                     size: 32,
@@ -160,14 +170,14 @@ class NowPlayingCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 28),
 
-                  // Play / Pause
+                  // Tombol Utama Play / Pause dengan animasi ikon
                   _PlayPauseButton(
                     isPlaying: provider.isPlaying,
                     onTap: provider.togglePlay,
                   ),
                   const SizedBox(width: 28),
 
-                  // Next
+                  // Tombol Lagu Berikutnya (Next)
                   _ControlButton(
                     icon: Icons.skip_next_rounded,
                     size: 32,
@@ -182,6 +192,7 @@ class NowPlayingCard extends StatelessWidget {
     );
   }
 
+  // Menampilkan modal bottom sheet daftar 8 lagu ESP32
   void _showPlaylistModal(BuildContext context, SpeakerProvider provider) {
     showModalBottomSheet(
       context: context,
@@ -197,6 +208,7 @@ class NowPlayingCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Handle garis penarik modal
             Center(
               child: Container(
                 width: 40,
@@ -208,6 +220,7 @@ class NowPlayingCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
+            // Header modal dan jumlah total lagu
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -230,6 +243,7 @@ class NowPlayingCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
+            // Daftar list lagu
             Expanded(
               child: ListView.separated(
                 itemCount: provider.playlist.length,
@@ -244,6 +258,7 @@ class NowPlayingCard extends StatelessWidget {
                   return ListTile(
                     contentPadding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    // Ikon indikator equaliser jika lagu sedang aktif
                     leading: Container(
                       width: 40,
                       height: 40,
@@ -279,6 +294,7 @@ class NowPlayingCard extends StatelessWidget {
                         color: AppColors.textTertiary,
                       ),
                     ),
+                    // Badge label "Diputar" jika lagu ini adalah yang sedang aktif
                     trailing: isCurrent
                         ? Container(
                             padding: const EdgeInsets.symmetric(
@@ -298,6 +314,7 @@ class NowPlayingCard extends StatelessWidget {
                           )
                         : null,
                     onTap: () {
+                      // Memilih lagu yang diklik dan menutup modal bottom sheet
                       provider.selectSong(index);
                       Navigator.of(ctx).pop();
                     },
@@ -312,6 +329,7 @@ class NowPlayingCard extends StatelessWidget {
   }
 }
 
+// Widget tombol kontrol bulat untuk Previous dan Next
 class _ControlButton extends StatelessWidget {
   final IconData icon;
   final double size;
@@ -343,6 +361,7 @@ class _ControlButton extends StatelessWidget {
   }
 }
 
+// Widget tombol Play / Pause dengan animasi transisi AnimatedIcon
 class _PlayPauseButton extends StatefulWidget {
   final bool isPlaying;
   final VoidCallback onTap;
@@ -360,6 +379,7 @@ class _PlayPauseButtonState extends State<_PlayPauseButton>
   @override
   void initState() {
     super.initState();
+    // Menginisialisasi controller animasi icon Play ke Pause
     _controller = AnimationController(
       duration: const Duration(milliseconds: 200),
       vsync: this,
@@ -367,6 +387,7 @@ class _PlayPauseButtonState extends State<_PlayPauseButton>
     );
   }
 
+  // Mengubah arah animasi saat status isPlaying berubah
   @override
   void didUpdateWidget(_PlayPauseButton oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -415,6 +436,7 @@ class _PlayPauseButtonState extends State<_PlayPauseButton>
             ],
           ),
           child: Center(
+            // Ikon animasi perpindahan Play dan Pause
             child: AnimatedIcon(
               icon: AnimatedIcons.play_pause,
               progress: _controller,

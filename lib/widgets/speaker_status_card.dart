@@ -1,13 +1,19 @@
+// Mengimpor paket material UI Flutter
 import 'package:flutter/material.dart';
+// Mengimpor provider untuk membaca status koneksi dan IP ESP32
 import 'package:provider/provider.dart';
+// Mengimpor SpeakerProvider
 import '../providers/speaker_provider.dart';
+// Mengimpor token warna tema
 import '../theme/app_theme.dart';
 
+// Widget kartu status koneksi speaker ESP32, kontrol sambung/restart, dan konfigurasi IP
 class SpeakerStatusCard extends StatelessWidget {
   const SpeakerStatusCard({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Mendengarkan perubahan state koneksi dari SpeakerProvider
     return Consumer<SpeakerProvider>(
       builder: (context, provider, _) {
         final connected = provider.isConnected;
@@ -31,9 +37,10 @@ class SpeakerStatusCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Header Status Perangkat & Tombol Ubah IP ──
               Row(
                 children: [
-                  // Speaker Icon with glowing container
+                  // Ikon speaker dengan wadah warna adaptif (biru saat online, abu-abu saat offline)
                   Container(
                     width: 52,
                     height: 52,
@@ -51,6 +58,7 @@ class SpeakerStatusCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 14),
+                  // Informasi label teks status
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,6 +88,7 @@ class SpeakerStatusCard extends StatelessWidget {
                         const SizedBox(height: 3),
                         Row(
                           children: [
+                            // Titik bulat status (Kuning jika connecting, Hijau jika online, Abu-abu jika offline)
                             Container(
                               width: 8,
                               height: 8,
@@ -93,6 +102,7 @@ class SpeakerStatusCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 6),
+                            // Teks alamat IP yang sedang digunakan
                             Expanded(
                               child: Text(
                                 isConnecting
@@ -112,7 +122,7 @@ class SpeakerStatusCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Settings / IP button
+                  // Tombol dialog ubah IP Wi-Fi
                   IconButton(
                     icon: const Icon(Icons.settings_ethernet_rounded, size: 22),
                     color: AppColors.primary,
@@ -123,7 +133,7 @@ class SpeakerStatusCard extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // ── Action Buttons: Sambung & Restart Koneksi ──
+              // ── Tombol Aksi: Sambung Koneksi & Restart Koneksi ──
               Row(
                 children: [
                   // Tombol Sambung Koneksi
@@ -240,6 +250,7 @@ class SpeakerStatusCard extends StatelessWidget {
     );
   }
 
+  // Menampilkan dialog popup untuk mengubah alamat IP ESP32
   void _showIpDialog(BuildContext context, SpeakerProvider provider) {
     final controller = TextEditingController(text: provider.settings.espIp);
 
@@ -297,6 +308,7 @@ class SpeakerStatusCard extends StatelessWidget {
             onPressed: () {
               final newIp = controller.text.trim();
               if (newIp.isNotEmpty) {
+                // Menyimpan IP baru ke settings dan langsung mencoba connect
                 provider.setEspIp(newIp);
                 provider.connect(newIp);
               }

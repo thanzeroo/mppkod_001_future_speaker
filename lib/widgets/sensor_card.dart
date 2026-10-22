@@ -1,19 +1,27 @@
+// Mengimpor paket material UI Flutter
 import 'package:flutter/material.dart';
+// Mengimpor provider untuk membaca data sensor secara reaktif
 import 'package:provider/provider.dart';
+// Mengimpor SpeakerProvider
 import '../providers/speaker_provider.dart';
+// Mengimpor token warna tema
 import '../theme/app_theme.dart';
 
+// Widget kartu pemantau jarak real-time dari dual sensor ultrasonik HC-SR04
 class SensorCard extends StatelessWidget {
   const SensorCard({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Mendengarkan perubahan data pembacaan sensor dari SpeakerProvider
     return Consumer<SpeakerProvider>(
       builder: (context, provider, _) {
         final reading = provider.sensorReading;
         final connected = provider.isConnected;
+        // Tangan terdeteksi hanya valid jika objek ada dan ESP32 dalam status tersambung
         final detected = reading.objectDetected && connected;
 
+        // Kontainer kartu dengan border animasi yang menyala saat tangan terdeteksi
         return AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           padding: const EdgeInsets.all(16),
@@ -21,6 +29,7 @@ class SensorCard extends StatelessWidget {
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
+              // Border menjadi biru saat gestur tangan aktif, atau netral saat diam
               color: detected
                   ? AppColors.primary.withValues(alpha: 0.3)
                   : AppColors.cardBorder,
@@ -28,7 +37,7 @@ class SensorCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // Hand icon
+              // Ikon telapak tangan gestur dengan latar belakang adaptif
               Container(
                 width: 48,
                 height: 48,
@@ -45,10 +54,12 @@ class SensorCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
+              // Bagian teks informasi status sensor
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Baris status teks dan titik indikator hijau/abu-abu
                     Row(
                       children: [
                         AnimatedContainer(
@@ -78,6 +89,7 @@ class SensorCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 5),
+                    // Menampilkan angka jarak riil dalam satuan cm
                     Text(
                       reading.distanceCm < 100
                           ? '${reading.distanceCm.toStringAsFixed(1)} cm · Dual HC-SR04'
@@ -89,6 +101,7 @@ class SensorCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 3),
+                    // Keterangan petunjuk aksi sensor
                     Text(
                       detected
                           ? 'Tangan siap memberi perintah gesture'

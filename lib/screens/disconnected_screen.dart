@@ -1,9 +1,15 @@
+// Mengimpor material UI Flutter
 import 'package:flutter/material.dart';
+// Mengimpor provider untuk memanggil method connect pada SpeakerProvider
 import 'package:provider/provider.dart';
+// Mengimpor SpeakerProvider
 import '../providers/speaker_provider.dart';
+// Mengimpor token warna tema
 import '../theme/app_theme.dart';
+// Mengimpor HomeScreen
 import 'home_screen.dart';
 
+// Layar status saat koneksi ke Future Speaker diputuskan oleh pengguna
 class DisconnectedScreen extends StatefulWidget {
   const DisconnectedScreen({super.key});
 
@@ -13,6 +19,7 @@ class DisconnectedScreen extends StatefulWidget {
 
 class _DisconnectedScreenState extends State<DisconnectedScreen>
     with SingleTickerProviderStateMixin {
+  // Controller animasi icon checkmark membal (elastic) dan teks fade-in
   late AnimationController _controller;
   late Animation<double> _scaleAnim;
   late Animation<double> _fadeAnim;
@@ -20,14 +27,17 @@ class _DisconnectedScreenState extends State<DisconnectedScreen>
   @override
   void initState() {
     super.initState();
+    // Durasi animasi 700 milidetik
     _controller = AnimationController(
       duration: const Duration(milliseconds: 700),
       vsync: this,
     );
+    // Efek scale membal elastis
     _scaleAnim = CurvedAnimation(
       parent: _controller,
       curve: Curves.elasticOut,
     );
+    // Efek fade-in halus
     _fadeAnim = CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOut,
@@ -50,9 +60,9 @@ class _DisconnectedScreenState extends State<DisconnectedScreen>
       body: SafeArea(
         child: Column(
           children: [
-            // ── Header ──
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+            // ── Header Judul Layar ──
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 14, 20, 0),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -66,7 +76,7 @@ class _DisconnectedScreenState extends State<DisconnectedScreen>
               ),
             ),
 
-            // ── Content ──
+            // ── Konten Inti Tengah ──
             Expanded(
               child: Center(
                 child: Padding(
@@ -76,13 +86,13 @@ class _DisconnectedScreenState extends State<DisconnectedScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Checkmark icon
+                        // Ikon centang dengan animasi pembesaran elastis
                         ScaleTransition(
                           scale: _scaleAnim,
                           child: Container(
                             width: 100,
                             height: 100,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               shape: BoxShape.circle,
                               color: AppColors.primarySurface,
                             ),
@@ -106,6 +116,7 @@ class _DisconnectedScreenState extends State<DisconnectedScreen>
                         ),
                         const SizedBox(height: 32),
 
+                        // Teks status konfirmasi
                         const Text(
                           'Koneksi berhasil\ndiputuskan',
                           textAlign: TextAlign.center,
@@ -118,7 +129,8 @@ class _DisconnectedScreenState extends State<DisconnectedScreen>
                         ),
                         const SizedBox(height: 14),
 
-                        Text(
+                        // Teks deskripsi penjelasan
+                        const Text(
                           'Future Speaker tidak lagi terhubung. Anda dapat menyambungkannya kembali kapan saja melalui Wi-Fi.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
@@ -129,7 +141,7 @@ class _DisconnectedScreenState extends State<DisconnectedScreen>
                         ),
                         const SizedBox(height: 32),
 
-                        // Device card
+                        // Kartu ringkasan perangkat yang baru saja diputus
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -176,7 +188,7 @@ class _DisconnectedScreenState extends State<DisconnectedScreen>
                                   ],
                                 ),
                               ),
-                              Text(
+                              const Text(
                                 'Terputus',
                                 style: TextStyle(
                                   fontSize: 13,
@@ -194,11 +206,12 @@ class _DisconnectedScreenState extends State<DisconnectedScreen>
               ),
             ),
 
-            // ── Bottom Buttons: Sambung Ulang & Kembali ──
+            // ── Tombol Bawah: Sambung Ulang & Kembali ke Beranda ──
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
               child: Column(
                 children: [
+                  // Tombol Sambung Koneksi Lagi
                   SizedBox(
                     width: double.infinity,
                     height: 52,
@@ -213,8 +226,10 @@ class _DisconnectedScreenState extends State<DisconnectedScreen>
                         ),
                       ),
                       onPressed: () async {
+                        // Memulai proses koneksi ulang ke ESP32
                         await provider.connect();
                         if (context.mounted) {
+                          // Mengarahkan kembali ke HomeScreen
                           Navigator.of(context).pushAndRemoveUntil(
                             PageRouteBuilder(
                               pageBuilder: (context, animation,
@@ -242,6 +257,7 @@ class _DisconnectedScreenState extends State<DisconnectedScreen>
                     ),
                   ),
                   const SizedBox(height: 12),
+                  // Tombol Kembali ke Beranda (offline mode)
                   SizedBox(
                     width: double.infinity,
                     height: 48,
