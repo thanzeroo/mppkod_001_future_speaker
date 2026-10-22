@@ -1,9 +1,15 @@
+// Mengimpor material UI Flutter
 import 'package:flutter/material.dart';
+// Mengimpor provider untuk membaca dan mengubah konfigurasi DeviceSettings
 import 'package:provider/provider.dart';
+// Mengimpor SpeakerProvider
 import '../providers/speaker_provider.dart';
+// Mengimpor token warna tema
 import '../theme/app_theme.dart';
+// Mengimpor layar DisconnectedScreen saat user menekan putuskan koneksi
 import 'disconnected_screen.dart';
 
+// Layar pengaturan (Settings Screen) untuk konfigurasi IP, sensitivitas sensor, dan profil speaker
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -14,6 +20,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
+    // Mendengarkan data DeviceSettings dari SpeakerProvider
     return Consumer<SpeakerProvider>(
       builder: (context, provider, _) {
         final s = provider.settings;
@@ -23,11 +30,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           body: SafeArea(
             child: Column(
               children: [
-                // ── Header ──
+                // ── Header Pengaturan & Tombol Kembali ──
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
                   child: Row(
                     children: [
+                      // Tombol panah kembali ke HomeScreen
                       IconButton(
                         icon: const Icon(Icons.chevron_left, size: 28),
                         onPressed: () => Navigator.of(context).pop(),
@@ -47,13 +55,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
 
-                // ── Content ──
+                // ── Daftar Pilihan Pengaturan (Scrollable) ──
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
                     physics: const BouncingScrollPhysics(),
                     children: [
-                      // Device Card
+                      // Kartu identitas perangkat & status koneksi aktif
                       _DeviceCard(
                         name: s.deviceName,
                         isConnected: provider.isConnected,
@@ -61,9 +69,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // ── Koneksi Wi-Fi ──
+                      // ── Bagian Koneksi Jaringan Wi-Fi ──
                       _sectionTitle('Koneksi Jaringan Wi-Fi'),
                       const SizedBox(height: 12),
+                      // Item ubah IP ESP32
                       _SettingsItem(
                         icon: Icons.wifi,
                         iconColor: AppColors.primary,
@@ -77,6 +86,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onTap: () => _showIpDialog(context, provider),
                       ),
                       const SizedBox(height: 8),
+                      // Item restart koneksi
                       _SettingsItem(
                         icon: Icons.sync_rounded,
                         iconColor: AppColors.primaryLight,
@@ -88,6 +98,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           size: 20,
                         ),
                         onTap: () async {
+                          // Menjalankan restart connection ke ESP32
                           await provider.restartConnection();
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -102,9 +113,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // ── Sensor Gesture ──
+                      // ── Bagian Sensor Gestur Ultrasonik HC-SR04 ──
                       _sectionTitle('Sensor Gesture HC-SR04'),
                       const SizedBox(height: 12),
+                      // Toggle aktif/nonaktif sensor
                       _SettingsItem(
                         icon: Icons.pan_tool_alt_outlined,
                         iconColor: AppColors.primary,
@@ -117,6 +129,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
+                      // Slider tingkat sensitivitas (Rendah, Sedang, Tinggi)
                       _SliderItem(
                         title: 'Sensitivitas',
                         valueLabel: s.sensitivityLabel,
@@ -127,6 +140,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onChanged: (v) => provider.setSensitivity(v.round()),
                       ),
                       const SizedBox(height: 8),
+                      // Slider batas jarak deteksi tangan (2-20 cm)
                       _SliderItem(
                         title: 'Jarak Deteksi',
                         valueLabel: '${s.detectionDistance} cm',
@@ -140,9 +154,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // ── Audio Feedback ──
+                      // ── Bagian Feedback Audio ──
                       _sectionTitle('Feedback'),
                       const SizedBox(height: 12),
+                      // Toggle bunyi konfirmasi gestur
                       _SettingsItem(
                         icon: Icons.notifications_active_outlined,
                         iconColor: AppColors.primary,
@@ -155,9 +170,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // ── Perangkat ──
+                      // ── Bagian Profil Perangkat ──
                       _sectionTitle('Perangkat'),
                       const SizedBox(height: 12),
+                      // Item ganti nama perangkat speaker
                       _SettingsItem(
                         icon: Icons.edit_outlined,
                         iconColor: AppColors.primary,
@@ -172,7 +188,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // ── Disconnect Button ──
+                      // ── Tombol Putuskan Koneksi ──
                       _DisconnectButton(
                         onTap: () => _handleDisconnect(context, provider),
                       ),
@@ -188,6 +204,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // Label pemisah kategori pengaturan
   Widget _sectionTitle(String title) {
     return Text(
       title,
@@ -200,6 +217,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // Dialog pop-up ubah alamat IP Wi-Fi
   void _showIpDialog(BuildContext context, SpeakerProvider provider) {
     final controller = TextEditingController(text: provider.settings.espIp);
 
@@ -268,6 +286,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // Dialog pop-up ganti nama perangkat speaker
   void _showDeviceNameDialog(BuildContext context, SpeakerProvider provider) {
     final controller =
         TextEditingController(text: provider.settings.deviceName);
@@ -338,6 +357,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // Memutuskan koneksi dan mengarahkan navigasi ke DisconnectedScreen
   void _handleDisconnect(BuildContext ctx, SpeakerProvider provider) {
     provider.disconnect();
     Navigator.of(ctx).pushAndRemoveUntil(
@@ -355,9 +375,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 }
 
 // ═══════════════════════════════════════════════════════
-// Widget Components
+// Komponen Widget Internal Layar Settings
 // ═══════════════════════════════════════════════════════
 
+// Widget kartu preview informasi perangkat
 class _DeviceCard extends StatelessWidget {
   final String name;
   final bool isConnected;
@@ -380,6 +401,7 @@ class _DeviceCard extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // Ikon speaker dalam kotak biru muda
           Container(
             width: 48,
             height: 48,
@@ -394,6 +416,7 @@ class _DeviceCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 14),
+          // Nama perangkat dan alamat IP
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -417,6 +440,7 @@ class _DeviceCard extends StatelessWidget {
               ],
             ),
           ),
+          // Badge status terhubung / terputus
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
@@ -455,6 +479,7 @@ class _DeviceCard extends StatelessWidget {
   }
 }
 
+// Widget baris item pengaturan standar (icon, title, subtitle, trailing action)
 class _SettingsItem extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
@@ -527,6 +552,7 @@ class _SettingsItem extends StatelessWidget {
   }
 }
 
+// Widget slider pengaturan bertahap (sensitivitas dan jarak deteksi)
 class _SliderItem extends StatelessWidget {
   final String title;
   final String valueLabel;
@@ -615,6 +641,7 @@ class _SliderItem extends StatelessWidget {
   }
 }
 
+// Widget tombol toggle switch animasi kustom
 class _ToggleSwitch extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -660,6 +687,7 @@ class _ToggleSwitch extends StatelessWidget {
   }
 }
 
+// Widget tombol putuskan koneksi berwarna slate bersih
 class _DisconnectButton extends StatelessWidget {
   final VoidCallback onTap;
 
