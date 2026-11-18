@@ -16,5 +16,19 @@ For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
 
-lia hadir
-nasya hadir
+# README - FUTURE SPEAKER
+
+## LINK GITHUB
+https://github.com/thanzeroo/mppkod_001_future_speaker.git
+
+## LINK LANDING PAGE
+https://mppkod-landing-page-future-speaker.vercel.app/
+
+## LINK DOWNLOAD APP
+https://drive.google.com/file/d/19RsSP6vWHW6szidREVFqVsycxMbx6ngw/view?usp=drive_link
+
+---
+
+Thank You!
+
+
